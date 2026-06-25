@@ -170,6 +170,27 @@ template <typename... Ops> struct HFusionOpInterfaceHelper {
     (Ops::template attachInterface<HFusionOpInterface<Ops>>(*ctx), ...);
   }
 };
+/// Bufferization interface for hfusion.pad_load.
+/// PadLoadOp is not a LinalgOp so it cannot use the generic HFusionOpInterface
+/// template. It is however a DestinationStyleOpInterface, so we extend
+/// DstBufferizableOpInterfaceExternalModel and override the read/write queries.
+struct PadLoadOpBufferizableInterface
+    : public DstBufferizableOpInterfaceExternalModel<
+          PadLoadOpBufferizableInterface, hfusion::PadLoadOp> {
+
+  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
+                              const AnalysisState &state) const {
+    // Operand 0 is `src` (the valid-region tensor) — it is read.
+    // Operand 1 is `dst` (the DPS init), operands 2+ are scalars/indices.
+    return opOperand.getOperandNumber() == 0;
+  }
+
+  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
+                               const AnalysisState &state) const {
+    return cast<DestinationStyleOpInterface>(op).isDpsInit(&opOperand);
+  }
+};
+
 } // namespace
 
 void mlir::hfusion::registerBufferizableOpInterfaceExternalModels(
@@ -185,5 +206,10 @@ void mlir::hfusion::registerBufferizableOpInterfaceExternalModels(
 #define GET_OP_LIST
 #include "bishengir/Dialect/HFusion/IR/HFusionStructuredOps.cpp.inc"
             >::registerOpInterface(ctx);
+
+        // PadLoadOp is a plain HFusion_Op (not a LinalgOp / structured op),
+        // so it is NOT in HFusionStructuredOps.cpp.inc. Register separately.
+        hfusion::PadLoadOp::attachInterface<PadLoadOpBufferizableInterface>(
+            *ctx);
       });
 }

@@ -700,6 +700,41 @@ struct HFusionLoadOpToHIVMLoadOp : public OpRewritePattern<hfusion::LoadOp> {
 };
 
 //===----------------------------------------------------------------------===//
+// HFusionPadLoadOpToHIVMLoadOp
+//===----------------------------------------------------------------------===//
+
+struct HFusionPadLoadOpToHIVMLoadOp
+    : public OpRewritePattern<hfusion::PadLoadOp> {
+  using OpRewritePattern<hfusion::PadLoadOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(hfusion::PadLoadOp op,
+                                PatternRewriter &rewriter) const override {
+    auto *ctx = op.getContext();
+    auto src = op.getSrc();
+    auto dst = op.getDst();
+    auto res = op.getResultTensor();
+    TypeRange resTypes = res ? TypeRange{res.getType()} : TypeRange{};
+    auto padMode = hivm::PadModeAttr::get(ctx, hivm::PadMode::PadValue);
+    Value padValue = op.getPadValue();
+    Value leftPad = op.getLeftPaddingNum();
+    Value rightPad = op.getRightPaddingNum();
+
+    if (leftPad && rightPad) {
+      rewriter.replaceOpWithNewOp<hivm::LoadOp>(op, resTypes, src, dst,
+                                                padMode, padValue, leftPad,
+                                                rightPad);
+    } else if (leftPad) {
+      rewriter.replaceOpWithNewOp<hivm::LoadOp>(op, resTypes, src, dst,
+                                                padMode, padValue, leftPad);
+    } else {
+      rewriter.replaceOpWithNewOp<hivm::LoadOp>(op, resTypes, src, dst,
+                                                padMode, padValue);
+    }
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // HFusionStoreOpToHIVMStoreOp
 //===----------------------------------------------------------------------===//
 
@@ -1227,6 +1262,7 @@ void populateLowerHFusionToHIVMPattern(RewritePatternSet &patterns) {
     LinalgFillOpToHIVMBrcOp,
     LinalgToHIVMCopyOp,
     HFusionLoadOpToHIVMLoadOp,
+    HFusionPadLoadOpToHIVMLoadOp,
     HFusionStoreOpToHIVMStoreOp,
     LinalgToHIVMTransposeOp,
     HFusionToHIVMArangeOp,

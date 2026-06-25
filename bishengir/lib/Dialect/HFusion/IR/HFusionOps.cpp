@@ -2879,6 +2879,52 @@ void ScatterStoreOp::getEffects(
 }
 
 //===----------------------------------------------------------------------===//
+// PadLoadOp
+//===----------------------------------------------------------------------===//
+
+void PadLoadOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &result,
+                      ::mlir::Value src, ::mlir::Value dst,
+                      ::mlir::Value pad_value, ::mlir::Value left_padding_num,
+                      ::mlir::Value right_padding_num) {
+  auto dstType = cast<RankedTensorType>(dst.getType());
+  result.addTypes(dstType);
+  result.addOperands({src, dst, pad_value, left_padding_num, right_padding_num});
+  result.addAttribute("operandSegmentSizes",
+                      builder.getDenseI32ArrayAttr({1, 1, 1, 1, 1}));
+}
+
+void PadLoadOp::build(::mlir::OpBuilder &builder, ::mlir::OperationState &result,
+                      ::mlir::Value src, ::mlir::Value dst,
+                      ::mlir::Value pad_value, ::mlir::Value left_padding_num) {
+  auto dstType = cast<RankedTensorType>(dst.getType());
+  result.addTypes(dstType);
+  result.addOperands({src, dst, pad_value, left_padding_num});
+  result.addAttribute("operandSegmentSizes",
+                      builder.getDenseI32ArrayAttr({1, 1, 1, 1, 0}));
+}
+
+LogicalResult PadLoadOp::verify() {
+  auto srcType = cast<RankedTensorType>(getSrc().getType());
+  auto dstType = cast<RankedTensorType>(getDst().getType());
+  if (srcType.getRank() != dstType.getRank())
+    return emitOpError("src and dst must have the same rank");
+  if (srcType.getElementType() != dstType.getElementType())
+    return emitOpError("src and dst must have the same element type");
+  if (getPadValue().getType() != srcType.getElementType())
+    return emitOpError("pad_value type must match tensor element type");
+  return success();
+}
+
+void PadLoadOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get(), &getSrcMutable(),
+                       SideEffects::DefaultResource::get());
+  effects.emplace_back(MemoryEffects::Write::get(), &getDstMutable(),
+                       SideEffects::DefaultResource::get());
+}
+
+//===----------------------------------------------------------------------===//
 // Conv1DOp
 //===----------------------------------------------------------------------===//
 

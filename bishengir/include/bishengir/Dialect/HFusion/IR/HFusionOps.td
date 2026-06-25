@@ -647,6 +647,49 @@ def ScatterStoreOp : HFusion_Op<"scatter_store", [
 }
 
 //===----------------------------------------------------------------------===//
+// PadLoadOp
+//===----------------------------------------------------------------------===//
+def PadLoadOp : HFusion_Op<"pad_load", [
+    DestinationStyleOpInterface,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AttrSizedOperandSegments
+]> {
+  let summary = "Tensor-level load with padding; pad semantics align 1:1 with hivm.load.";
+  let arguments = (ins
+    AnyRankedTensor:$src,
+    AnyRankedTensor:$dst,
+    AnyType:$pad_value,
+    Optional<Index>:$left_padding_num,
+    Optional<AnyType>:$right_padding_num
+  );
+  let results = (outs Optional<AnyRankedTensor>:$result_tensor);
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$src, "::mlir::Value":$dst,
+                   "::mlir::Value":$pad_value,
+                   "::mlir::Value":$left_padding_num,
+                   "::mlir::Value":$right_padding_num)>,
+    OpBuilder<(ins "::mlir::Value":$src, "::mlir::Value":$dst,
+                   "::mlir::Value":$pad_value,
+                   "::mlir::Value":$left_padding_num)>,
+  ];
+  let assemblyFormat = [{
+    `ins` `(` $src `:` type($src) `)`
+    `outs` `(` $dst `:` type($dst) `)`
+    `pad_value` `=` $pad_value `:` type($pad_value)
+    (`left` `=` $left_padding_num^ `:` type($left_padding_num))?
+    (`right` `=` $right_padding_num^ `:` type($right_padding_num))?
+    attr-dict
+    (`->` type($result_tensor)^)?
+  }];
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() {
+      return getDstMutable();
+    }
+  }];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // MatMulMxOp
 //===----------------------------------------------------------------------===//
 def MatMulMxOp : HFusion_Op<"matmul_mx", [Pure, DestinationStyleOpInterface]> {
