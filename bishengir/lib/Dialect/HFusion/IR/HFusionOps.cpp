@@ -2912,6 +2912,11 @@ LogicalResult PadLoadOp::verify() {
     return emitOpError("src and dst must have the same element type");
   if (getPadValue().getType() != srcType.getElementType())
     return emitOpError("pad_value type must match tensor element type");
+  // Padding is last-dimension only (mirrors hivm.load hardware constraint).
+  // All non-last dimensions of src and dst must be identical.
+  if (srcType.getShape().drop_back() != dstType.getShape().drop_back())
+    return emitOpError("src and dst must match in all dimensions except the "
+                       "last (padding is last-dimension only)");
   return success();
 }
 
