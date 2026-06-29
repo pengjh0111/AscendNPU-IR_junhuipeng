@@ -713,7 +713,10 @@ struct HFusionPadLoadOpToHIVMLoadOp
     auto src = op.getSrc();
     auto dst = op.getDst();
     auto res = op.getResultTensor();
-    TypeRange resTypes = res ? TypeRange{res.getType()} : TypeRange{};
+    // Store in SmallVector so TypeRange doesn't point to a temporary backing array.
+    SmallVector<Type, 1> resTypes;
+    if (res)
+      resTypes.push_back(res.getType());
     auto padMode = hivm::PadModeAttr::get(ctx, hivm::PadMode::PadValue);
     Value padValue = op.getPadValue();
     Value leftPad = op.getLeftPaddingNum();
