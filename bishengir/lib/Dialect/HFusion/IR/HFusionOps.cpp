@@ -2879,6 +2879,27 @@ void ScatterStoreOp::getEffects(
 }
 
 //===----------------------------------------------------------------------===//
+// GMStoreOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult GMStoreOp::verify() {
+  auto srcType = cast<ShapedType>(getSrc().getType());
+  auto dstType = cast<ShapedType>(getDst().getType());
+  if (srcType.getElementType() != dstType.getElementType())
+    return emitOpError("element types of src and dst should be the same");
+  if (srcType.getRank() != dstType.getRank())
+    return emitOpError("src and dst should have the same rank");
+  return success();
+}
+
+void GMStoreOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Write::get(), &getDstMutable(),
+                       SideEffects::DefaultResource::get());
+}
+
+//===----------------------------------------------------------------------===//
 // PadLoadOp
 //===----------------------------------------------------------------------===//
 

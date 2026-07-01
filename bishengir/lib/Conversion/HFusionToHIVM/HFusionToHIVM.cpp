@@ -803,6 +803,26 @@ struct HFusionStoreOpToHIVMStoreOp : public OpRewritePattern<hfusion::StoreOp> {
 };
 
 //===----------------------------------------------------------------------===//
+// HFusionGMStoreOpToHIVMStoreOp
+//===----------------------------------------------------------------------===//
+
+struct HFusionGMStoreOpToHIVMStoreOp
+    : public OpRewritePattern<hfusion::GMStoreOp> {
+  using OpRewritePattern<hfusion::GMStoreOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(hfusion::GMStoreOp op,
+                                PatternRewriter &rewriter) const override {
+    Value src = op.getSrc();
+    Value dst = op.getDst();
+    // result is optional; forward whatever results the op has (0 or 1).
+    auto newStoreOp = rewriter.create<hivm::StoreOp>(
+        op.getLoc(), op->getResultTypes(), src, dst);
+    rewriter.replaceOp(op, newStoreOp);
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
 // HFusionToHIVMBitcastOp
 //===----------------------------------------------------------------------===//
 
@@ -1267,6 +1287,7 @@ void populateLowerHFusionToHIVMPattern(RewritePatternSet &patterns) {
     HFusionLoadOpToHIVMLoadOp,
     HFusionPadLoadOpToHIVMLoadOp,
     HFusionStoreOpToHIVMStoreOp,
+    HFusionGMStoreOpToHIVMStoreOp,
     LinalgToHIVMTransposeOp,
     HFusionToHIVMArangeOp,
     HFusionToHIVMGatherOp,

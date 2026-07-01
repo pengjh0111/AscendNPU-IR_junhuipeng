@@ -647,6 +647,48 @@ def ScatterStoreOp : HFusion_Op<"scatter_store", [
 }
 
 //===----------------------------------------------------------------------===//
+// GMStoreOp
+//===----------------------------------------------------------------------===//
+
+def GMStoreOp : HFusion_Op<"gm_store", [
+    DestinationStyleOpInterface,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = [{
+    Stores a tensor source into a (GM) destination buffer as a single op.
+  }];
+
+  let description = [{
+    Takes a tensor source and writes it into the destination buffer (dst),
+    which may be a tensor or a memref (e.g. a reinterpret_cast/subview of a GM
+    output parameter). Unlike the linalg-structured hfusion.store, this op is a
+    plain HFusion_Op with a hand-written memory-write side effect on dst, so it
+    is never treated as dead code even when its (optional) result is unused, and
+    it allows a tensor src together with a memref dst without requiring
+    bufferization materialization.
+  }];
+
+  let arguments = (ins
+    AnyRankedTensor:$src,
+    TensorOrMemref:$dst
+  );
+  let results = (outs Optional<AnyRankedTensor>:$result);
+
+  let assemblyFormat = [{
+    `ins` `(` $src `:` type($src) `)`
+    `outs` `(` $dst `:` type($dst) `)`
+    attr-dict
+    (`->` type($result)^)?
+  }];
+
+  let extraClassDeclaration = [{
+    ::mlir::MutableOperandRange getDpsInitsMutable() { return getDstMutable(); }
+  }];
+
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // PadLoadOp
 //===----------------------------------------------------------------------===//
 def PadLoadOp : HFusion_Op<"pad_load", [
